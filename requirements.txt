@@ -1,0 +1,8 @@
+torch>=2.3.0+cuda12.4
+transformers
+vec2text
+datasets
+tqdm
+evaluate
+nltk
+bs4
