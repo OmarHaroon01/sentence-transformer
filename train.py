@@ -21,7 +21,7 @@ nltk.download('punkt')
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 datasets = load_dataset("wikipedia", "20220301.en")
-datasets["train"] = load_dataset("wikipedia", "20220301.en", split=f"train[:3000000]")
+datasets["train"] = load_dataset("wikipedia", "20220301.en", split=f"train[:2500000]")
 datasets["validation"] = load_dataset("wikipedia", "20220301.en", split=f"train[-322934:]")
 
 # Function to remove HTML Tags from paragraph
