@@ -153,7 +153,7 @@ for epoch in range(10):
     cnt = cnt + 1
 
     # SAVING AND PRINTING LOSS AFTER EVERY 20000 STEPS
-    if cnt % 20000 == 0:
+    if cnt % 10000 == 0:
       checkpoint = {
           'epoch': epoch,
           'model': model.state_dict(),
