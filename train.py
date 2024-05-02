@@ -1,94 +1,74 @@
+from transformers import AutoModel
 import torch
-import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import re
+import torch.nn as nn
 import os
-import nltk
-import vec2text
-import torch
-import evaluate
 from tqdm.auto import tqdm
-from transformers import set_seed
-from datasets import load_dataset
-from bs4 import BeautifulSoup
-from nltk.tokenize import sent_tokenize
-from transformers import DefaultDataCollator
-from transformers import AutoModel, AutoTokenizer, PreTrainedTokenizer, PreTrainedModel, T5ForConditionalGeneration, AutoConfig
+from torch.utils.data import IterableDataset, DataLoader
 
-set_seed(42) 
-nltk.download('punkt')
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-datasets = load_dataset("wikipedia", "20220301.en")
-datasets["train"] = load_dataset("wikipedia", "20220301.en", split=f"train[:2500000]")
-datasets["validation"] = load_dataset("wikipedia", "20220301.en", split=f"train[-322934:]")
+class FinalDataset(IterableDataset):
+    def __init__(self, file_paths):
+        self.file_paths = file_paths
 
-# Function to remove HTML Tags from paragraph
-def remove_html_tags(text):
-    soup = BeautifulSoup(text, 'html.parser')
-    return soup.get_text()
+    def __iter__(self):
+        for file_path in self.file_paths:
+            tensors = torch.load(file_path)
+            for input_tensor, output_tensor in zip(tensors[:-1], tensors[1:]):
+                yield input_tensor, output_tensor
 
+train_file_paths = ["train/output_5000000_5050000.pt",
+                    "train/output_5050000_5070000.pt",
+                    "train/output_5070000_5090000.pt",
+                    "train/output_5090000_5110000.pt",
+                    "train/output_5110000_5130000.pt",
+                    "train/output_5130000_5150000.pt",
+                    "train/output_5150000_5170000.pt",
+                    "train/output_5170000_5190000.pt",
+                    "train/output_5190000_5210000.pt",
+                    "train/output_5210000_5230000.pt",
+                    "train/output_5230000_5250000.pt",
+                    "train/output_5250000_5270000.pt",
+                    "train/output_5270000_5290000.pt",
+                    "train/output_5290000_5310000.pt",
+                    "train/output_5310000_5360000.pt",
+                    "train/output_5360000_5410000.pt",
+                    "train/output_5410000_5460000.pt",
+                    "train/output_5460000_5500000.pt",
+                    "train/output_5500000_5550000.pt",
+                    "train/output_5550000_5570000.pt",
+                    "train/output_5570000_5580000.pt",
+                    "train/output_5580000_5630000.pt",
+                    "train/output_5630000_5680000.pt",
+                    "train/output_5680000_5730000.pt",
+                    "train/output_5730000_5780000.pt",
+                    "train/output_5780000_5830000.pt",
+                    "train/output_5830000_5880000.pt",
+                    "train/output_5880000_5930000.pt",
+                    "train/output_5930000_5980000.pt",
+                    "train/output_5980000_6000000.pt",
+                    "train/output_6000000_6050000.pt",
+                    "train/output_6050000_6100000.pt",
+                    "train/output_6100000_6150000.pt",]
 
-#Function to clean the paragraphs
-def clean_text(text):
-    text = remove_html_tags(text)
-    text = ' '.join(text.split())  # Remove redundant spaces
-    text = re.sub(r'\n+', '\n', text) #Remove redundant new line
-    text = re.sub(r'[^A-Za-z0-9\s,.!-?–]+', '', text)  # Remove special characters
-    return text
+test_file_paths = ["test/output_6150000_6200000.pt",
+                   "test/output_6200000_6250000.pt",
+                   "test/output_6250000_6300000.pt",
+                   "test/output_6300000_6350000.pt",
+                   "test/output_6350000_6400000.pt",
+                   "test/output_6400000_6450000.pt",
+                   "test/output_6450000_6500000.pt",
+                   ]
 
-datasets = datasets.map(lambda x: {'text': clean_text(x['text'])})
+train_dataset = FinalDataset(train_file_paths)
+test_dataset = FinalDataset(test_file_paths)
 
-
-# Loading the tokenizer
-tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/gtr-t5-base")
-
-
-# This function is used to tokenize the dataset
-def process_dataset(dataset):
-    sentences = []
-
-    for article in dataset['text']:
-        article_sentences = sent_tokenize(article)
-        sentences.extend(article_sentences)
-
-    
-    inputs = sentences[:-1]
-    targets = sentences[1:]
-
-
-    model_inputs = tokenizer(inputs, return_tensors="pt", max_length=128, truncation=True, padding="max_length") 
-    labels = tokenizer(targets, return_tensors="pt", max_length=128, padding="max_length", truncation=True) 
-
-    model_inputs["labels"] = labels["input_ids"]
-    model_inputs["label_attention_mask"] = labels["attention_mask"]
-
-    return model_inputs
-
-tokenized_dataset = datasets.map(process_dataset, batched=True, remove_columns=["text", "url", "id", "title"])
-
-
-encoder = AutoModel.from_pretrained("sentence-transformers/gtr-t5-base").encoder.to(DEVICE)
-
-batch_sz = 2
+batch_sz = 4
 learning_rate = 0.001
 
-
-data_collator = DefaultDataCollator()
-
-train_dataloader = torch.utils.data.DataLoader(
-    tokenized_dataset["train"],
-    batch_size=batch_sz,
-    collate_fn=data_collator,
-)
-
-test_dataloader = torch.utils.data.DataLoader(
-    tokenized_dataset["validation"],
-    batch_size=batch_sz,
-    collate_fn=data_collator,
-)
-
+train_loader = DataLoader(train_dataset, batch_size=batch_sz)
+test_loader = DataLoader(test_dataset, batch_size=batch_sz)
 
 model = AutoModel.from_pretrained("t5-base")
 model.to(DEVICE)
@@ -96,53 +76,33 @@ model.to(DEVICE)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# The sentence embedding of eos token is calculated
-eos_tokens = tokenizer(tokenizer.eos_token, add_special_tokens=False, return_tensors="pt")
-eos_embedding = encoder(eos_tokens['input_ids'].to(DEVICE), eos_tokens['attention_mask'].to(DEVICE))
-hidden_state = eos_embedding.last_hidden_state
-eos_input_embedding = vec2text.models.model_utils.mean_pool(hidden_state.to(DEVICE), eos_tokens['attention_mask'].to(DEVICE)).to(DEVICE)
+# Load the tensors from the file
+loaded_data = torch.load("train/extra_tokens.pt")
 
-#The sentence embedding of pad token is calculated (Pad token is used as start token for T5)
-pad_tokens = tokenizer(tokenizer.pad_token, add_special_tokens=False, return_tensors="pt")
-pad_embedding = encoder(pad_tokens['input_ids'].to(DEVICE), pad_tokens['attention_mask'].to(DEVICE))
-hidden_state = pad_embedding.last_hidden_state
-pad_input_embedding = vec2text.models.model_utils.mean_pool(hidden_state.to(DEVICE), pad_tokens['attention_mask'].to(DEVICE)).to(DEVICE)
+# Access the tensors from the loaded data
+eos_input_embedding = loaded_data['eos']
+pad_input_embedding = loaded_data['pad']
 
-for epoch in range(10):
+train_loader_size = 0
+test_loader_size = 0
+for epoch in range(1):
   epoch_loss = 0
   cnt = 0
+  for inputs, targets in train_loader:
 
+    train_loader_size += batch_sz
 
-  ### TRAINING LOOP FOR EACH EPOCH ###
-  for batch in tqdm(train_dataloader, desc='Training:'):
+    inputs = inputs.to(DEVICE)
+    targets = targets.to(DEVICE)
 
-    #Moving the tensors to the available DEVICE
-    batch['input_ids'] = batch['input_ids'].to(DEVICE)
-    batch['attention_mask'] = batch['attention_mask'].to(DEVICE)
-    batch['labels'] = batch['labels'].to(DEVICE)
-    batch['label_attention_mask'] = batch['label_attention_mask'].to(DEVICE)
-
-    # This is used to calculate the sentence embedding for the input and labels
     with torch.no_grad():
-        llmm_input = encoder(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
-        hidden_state = llmm_input.last_hidden_state
-        llmm_input_embedding = vec2text.models.model_utils.mean_pool(hidden_state, batch['attention_mask']).to(DEVICE)
+      llmm_label_embedding_final = torch.empty(batch_sz, 3, 768).to(DEVICE)
+      llmm_label_embedding_final[:, 0, :] = pad_input_embedding.squeeze(0)
+      llmm_label_embedding_final[:, 2, :] = eos_input_embedding.squeeze(0)
+      llmm_label_embedding_final[:, 1, :] = targets
 
-        # Defining an empty tensor to store the label along with EOS and PAD token (Sequence length of 3)
-        llmm_label_embedding_final = torch.empty(batch_sz, 3, 768).to(DEVICE)
-        llmm_label_embedding_final[:, 0, :] = pad_input_embedding.squeeze(0)
-        llmm_label_embedding_final[:, 2, :] = eos_input_embedding.squeeze(0)
-
-        llmm_label = encoder(input_ids=batch['labels'], attention_mask=batch['label_attention_mask'])
-        hidden_state = llmm_label.last_hidden_state
-        llmm_label_embedding = vec2text.models.model_utils.mean_pool(hidden_state, batch['label_attention_mask']).to(DEVICE)
-
-        llmm_label_embedding_final[:, 1, :] = llmm_label_embedding
-
-    # This adds the sequence length(1) dimension to input tensor. Makes the tensor [batch_sz, 1, 768] from [batch_sz, 768]
-    llmm_input_embedding = llmm_input_embedding.unsqueeze(1)
-
-    llmm_output = model(inputs_embeds = llmm_input_embedding.to(DEVICE), decoder_inputs_embeds = llmm_label_embedding_final.to(DEVICE))
+    inputs = inputs.unsqueeze(1)
+    llmm_output = model(inputs_embeds = inputs, decoder_inputs_embeds = llmm_label_embedding_final)
     loss = criterion(llmm_output[0], llmm_label_embedding_final)
 
     optimizer.zero_grad()
@@ -152,8 +112,7 @@ for epoch in range(10):
     epoch_loss += loss.item()
     cnt = cnt + 1
 
-    # SAVING AND PRINTING LOSS AFTER EVERY 20000 STEPS
-    if cnt % 10000 == 0:
+    if cnt % 15000 == 0:
       checkpoint = {
           'epoch': epoch,
           'model': model.state_dict(),
@@ -162,57 +121,119 @@ for epoch in range(10):
       torch.save(checkpoint, 'T5_model_NSP.pth')  # Save model in current directory
       current_directory = os.getcwd()
       with open(os.path.join(current_directory, 'step_loss.txt'), 'a') as file:
-          file.write(f'Step: {cnt}, Loss: {loss}\n')
+          file.write(f'Epoch: {epoch+1}, Step: {cnt}, Loss: {loss}\n')
       print(loss)
 
-
-  ### TESTING AFTER EACH EPOCH ###
-
   valid_loss = 0
-  for batch in tqdm(test_dataloader, desc='Testing:'):
 
-    #Moving the tensors to the available DEVICE
-    batch['input_ids'] = batch['input_ids'].to(DEVICE)
-    batch['attention_mask'] = batch['attention_mask'].to(DEVICE)
-    batch['labels'] = batch['labels'].to(DEVICE)
-    batch['label_attention_mask'] = batch['label_attention_mask'].to(DEVICE)
+  for inputs, targets in test_loader:
+
+    test_loader_size += batch_sz
 
 
+    inputs = inputs.to(DEVICE)
+    targets = targets.to(DEVICE)
 
-    # This is used to calculate the sentence embedding for the input and labels
+
     with torch.no_grad():
+      llmm_label_embedding_final = torch.empty(batch_sz, 3, 768).to(DEVICE)
+      llmm_label_embedding_final[:, 0, :] = pad_input_embedding.squeeze(0)
+      llmm_label_embedding_final[:, 2, :] = eos_input_embedding.squeeze(0)
+      llmm_label_embedding_final[:, 1, :] = targets
 
-        llmm_input = encoder(input_ids=batch['input_ids'].to(DEVICE), attention_mask=batch['attention_mask'].to(DEVICE))
-        hidden_state = llmm_input.last_hidden_state
-        llmm_input_embedding = vec2text.models.model_utils.mean_pool(hidden_state, batch['attention_mask'])
-
-
-        # Defining an empty tensor to store the label along with EOS and PAD token (Sequence length of 3)
-        llmm_label_embedding_final = torch.empty(batch_sz, 3, 768).to(DEVICE)
-        llmm_label_embedding_final[:, 0, :] = pad_input_embedding.squeeze(0)
-        llmm_label_embedding_final[:, 2, :] = eos_input_embedding.squeeze(0)
+      inputs = inputs.unsqueeze(1)
 
 
-        llmm_label = encoder(input_ids=batch['labels'].to(DEVICE), attention_mask=batch['label_attention_mask'].to(DEVICE))
-        hidden_state = llmm_label.last_hidden_state
-        llmm_label_embedding = vec2text.models.model_utils.mean_pool(hidden_state, batch['label_attention_mask'])
+      llmm_output = model(inputs_embeds = inputs, decoder_inputs_embeds = llmm_label_embedding_final)
+      loss_func = criterion(llmm_output[0], llmm_label_embedding_final)
 
-        llmm_label_embedding_final[:, 1, :] = llmm_label_embedding
-
-        # This adds the sequence length(1) dimension to input tensor. Makes the tensor [batch_sz, 1, 768] from [batch_sz, 768]
-        llmm_input_embedding = llmm_input_embedding.unsqueeze(1)
-
-        llmm_output = model(inputs_embeds = llmm_input_embedding.to(DEVICE), decoder_inputs_embeds = llmm_label_embedding_final.to(DEVICE))
-        loss_func = criterion(llmm_output[0], llmm_label_embedding_final)
 
     loss = loss_func.item()
     valid_loss += loss
-  print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/len(train_dataloader)}, Eval Loss: {valid_loss/len(test_dataloader)}')
+
+
+  print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}')
   current_directory = os.getcwd()
   with open(os.path.join(current_directory, 'epoch_loss.txt'), 'a') as file:
-    file.write(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/len(train_dataloader)}, Eval Loss: {valid_loss/len(test_dataloader)}')
+    file.write(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}\n')
+
+
+
+progress_bar = tqdm(range(9 * (test_loader_size + train_loader_size)))
+for epoch in range(1, 10):
+  epoch_loss = 0
+  cnt = 0
+  for inputs, targets in train_loader:
+
+    inputs = inputs.to(DEVICE)
+    targets = targets.to(DEVICE)
+
+    with torch.no_grad():
+      llmm_label_embedding_final = torch.empty(batch_sz, 3, 768).to(DEVICE)
+      llmm_label_embedding_final[:, 0, :] = pad_input_embedding.squeeze(0)
+      llmm_label_embedding_final[:, 2, :] = eos_input_embedding.squeeze(0)
+      llmm_label_embedding_final[:, 1, :] = targets
+
+    inputs = inputs.unsqueeze(1)
+    llmm_output = model(inputs_embeds = inputs, decoder_inputs_embeds = llmm_label_embedding_final)
+    loss = criterion(llmm_output[0], llmm_label_embedding_final)
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    epoch_loss += loss.item()
+    cnt = cnt + 1
+
+    if cnt % 15000 == 0:
+      checkpoint = {
+          'epoch': epoch,
+          'model': model.state_dict(),
+          'train_loss': epoch_loss,
+          'optimizer': optimizer.state_dict()}
+      torch.save(checkpoint, 'T5_model_NSP.pth')  # Save model in current directory
+      current_directory = os.getcwd()
+      with open(os.path.join(current_directory, 'step_loss.txt'), 'a') as file:
+          file.write(f'Epoch: {epoch+1}, Step: {cnt}, Loss: {loss}\n')
+      print(loss)
+
+    progress_bar.update(batch_sz)
+
+
+  valid_loss = 0
+
+  for inputs, targets in test_loader:
+
+    inputs = inputs.to(DEVICE)
+    targets = targets.to(DEVICE)
+
+
+    with torch.no_grad():
+      llmm_label_embedding_final = torch.empty(batch_sz, 3, 768).to(DEVICE)
+      llmm_label_embedding_final[:, 0, :] = pad_input_embedding.squeeze(0)
+      llmm_label_embedding_final[:, 2, :] = eos_input_embedding.squeeze(0)
+      llmm_label_embedding_final[:, 1, :] = targets
+
+      inputs = inputs.unsqueeze(1)
+
+
+      llmm_output = model(inputs_embeds = inputs, decoder_inputs_embeds = llmm_label_embedding_final)
+      loss_func = criterion(llmm_output[0], llmm_label_embedding_final)
+
+    loss = loss_func.item()
+    valid_loss += loss
+
+    progress_bar.update(batch_sz)
+
+  print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}')
+  current_directory = os.getcwd()
+  with open(os.path.join(current_directory, 'epoch_loss.txt'), 'a') as file:
+    file.write(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}\n')
+
+progress_bar.n = (9 * (test_loader_size + train_loader_size))
+progress_bar.refresh()
 
 checkpoint = {
-    'model': model.state_dict(),
-    'optimizer': optimizer.state_dict()}
+  'model': model.state_dict(),
+  'optimizer': optimizer.state_dict()}
 torch.save(checkpoint, 'T5_model_NSP.pth')  # Save model in current directory
