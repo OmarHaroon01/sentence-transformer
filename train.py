@@ -64,7 +64,7 @@ test_file_paths = ["test/output_6150000_6200000.pt",
 train_dataset = FinalDataset(train_file_paths)
 test_dataset = FinalDataset(test_file_paths)
 
-batch_sz = 4
+batch_sz = 2
 learning_rate = 0.001
 
 train_loader = DataLoader(train_dataset, batch_size=batch_sz)
@@ -112,7 +112,7 @@ for epoch in range(1):
     epoch_loss += loss.item()
     cnt = cnt + 1
 
-    if cnt % 15000 == 0:
+    if cnt % 50000 == 0:
       checkpoint = {
           'epoch': epoch,
           'model': model.state_dict(),
@@ -185,7 +185,7 @@ for epoch in range(1, 10):
     epoch_loss += loss.item()
     cnt = cnt + 1
 
-    if cnt % 15000 == 0:
+    if cnt % 50000 == 0:
       checkpoint = {
           'epoch': epoch,
           'model': model.state_dict(),
