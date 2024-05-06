@@ -27,67 +27,64 @@ class FinalDataset(IterableDataset):
 batch_sz = 2048
 learning_rate = 0.001
 
+checkpoint = torch.load('T5_model_NSP.pth')
+
 model = AutoModel.from_pretrained("t5-base")
+model.load_state_dict(checkpoint['model'])
 model.to(DEVICE)
 
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+optimizer.load_state_dict(checkpoint['optimizer'])
 
 loaded_data = torch.load("train/extra_tokens.pt")
 eos_input_embedding = loaded_data['eos']
 pad_input_embedding = loaded_data['pad']
 
-train_file_paths = ["train/output_3500000_3550000.pt",
-                    "train/output_3550000_3600000.pt",
-                    "train/output_3600000_3650000.pt",
-                    "train/output_3650000_3700000.pt",
-                    "train/output_3700000_3800000.pt",
-                    "train/output_3800000_3900000.pt",
-                    "train/output_3900000_4000000.pt",
-                    "train/output_4000000_4050000.pt",
-                    "train/output_4050000_4070000.pt",
-                    "train/output_4070000_4120000.pt",
-                    "train/output_4120000_4125000.pt",
-                    "train/output_4125000_4130000.pt",
-                    "train/output_4130000_4150000.pt",
-                    "train/output_4150000_4200000.pt",
-                    "train/output_4200000_4250000.pt",
-                    "train/output_4250000_4350000.pt",
-                    "train/output_4350000_4450000.pt",
-                    "train/output_4450000_4500000.pt",
-                    "train/output_4500000_4550000.pt",
-                    "train/output_4550000_4600000.pt",
-                    "train/output_4600000_4650000.pt",
-                    "train/output_4650000_4700000.pt",
-                    "train/output_4700000_4750000.pt",
-                    "train/output_4750000_4800000.pt",
-                    "train/output_4800000_4900000.pt",
-                    "train/output_5170000_5190000.pt",
-                    "train/output_5190000_5210000.pt",
-                    "train/output_5210000_5230000.pt",
-                    "train/output_5230000_5250000.pt",
-                    "train/output_5250000_5270000.pt",
-                    "train/output_5270000_5290000.pt",
-                    "train/output_5290000_5310000.pt",
-                    "train/output_5310000_5360000.pt",
-                    "train/output_5360000_5410000.pt",
-                    "train/output_5410000_5460000.pt",
-                    "train/output_5460000_5500000.pt",
-                    "train/output_5500000_5550000.pt",
-                    "train/output_5550000_5570000.pt",
-                    "train/output_5570000_5580000.pt",
-                    "train/output_5580000_5630000.pt",
-                    "train/output_5630000_5680000.pt",
-                    "train/output_5680000_5730000.pt",
-                    "train/output_5730000_5780000.pt",
-                    "train/output_5780000_5830000.pt",
-                    "train/output_5830000_5880000.pt",
-                    "train/output_5880000_5930000.pt",
-                    "train/output_5930000_5980000.pt",
-                    "train/output_5980000_6000000.pt",
-                    "train/output_6000000_6050000.pt",
-                    "train/output_6050000_6100000.pt",
-                    "train/output_6100000_6150000.pt"]
+train_file_paths = ["train/output_1000000_1050000.pt",
+                    "train/output_1050000_1100000.pt",
+                    "train/output_1100000_1150000.pt",
+                    "train/output_1150000_1200000.pt",
+                    "train/output_1200000_1250000.pt",
+                    "train/output_1250000_1300000.pt",
+                    "train/output_1300000_1350000.pt",
+                    "train/output_1350000_1400000.pt",
+                    "train/output_1400000_1450000.pt",
+                    "train/output_1450000_1500000.pt",
+                    "train/output_1500000_1600000.pt",
+                    "train/output_1600000_1700000.pt",
+                    "train/output_1700000_1800000.pt",
+                    "train/output_1800000_1900000.pt",
+                    "train/output_1900000_2000000.pt",
+                    "train/output_2000000_2100000.pt",
+                    "train/output_2100000_2200000.pt",
+                    "train/output_2200000_2300000.pt",
+                    "train/output_2300000_2400000.pt",
+                    "train/output_2400000_2500000.pt",
+                    "train/output_2500000_2505000.pt",
+                    "train/output_2505000_2545000.pt",
+                    "train/output_2545000_2555000.pt",
+                    "train/output_2555000_2565000.pt",
+                    "train/output_2565000_2585000.pt",
+                    "train/output_2585000_2600000.pt",
+                    "train/output_2600000_2700000.pt",
+                    "train/output_2700000_2800000.pt",
+                    "train/output_2800000_2900000.pt",
+                    "train/output_2900000_3000000.pt",
+                    "train/output_3000000_3100000.pt",
+                    "train/output_3100000_3200000.pt",
+                    "train/output_3200000_3300000.pt",
+                    "train/output_3300000_3400000.pt",
+                    "train/output_3400000_3500000.pt",
+		            "train/output_4900000_5000000.pt",
+                    "train/output_5000000_5050000.pt",
+                    "train/output_5050000_5070000.pt",
+                    "train/output_5070000_5090000.pt",
+                    "train/output_5090000_5110000.pt",
+                    "train/output_5110000_5130000.pt",
+                    "train/output_5130000_5150000.pt",
+                    "train/output_5150000_5170000.pt"]
+
 
 test_file_paths = ["test/output_6150000_6200000.pt",
                    "test/output_6200000_6250000.pt",
@@ -161,14 +158,14 @@ for epoch in range(10):
     'epoch': epoch,
     'model': model.state_dict(),
     'optimizer': optimizer.state_dict()}
-  torch.save(checkpoint, 'T5_model_NSP.pth')
+  torch.save(checkpoint, 'T5_model_NSP_1.pth')
   
   print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}')
   current_directory = os.getcwd()
-  with open(os.path.join(current_directory, 'epoch_loss.txt'), 'a') as file:
+  with open(os.path.join(current_directory, 'epoch_loss_1.txt'), 'a') as file:
     file.write(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}\n')
 
 checkpoint = {
   'model': model.state_dict(),
   'optimizer': optimizer.state_dict()}
-torch.save(checkpoint, 'T5_model_NSP.pth')
+torch.save(checkpoint, 'T5_model_NSP_1.pth')
