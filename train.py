@@ -126,7 +126,7 @@ for epoch in range(0, 10):
             llmm_output = model(inputs_embeds = inputs, decoder_inputs_embeds = targets)
             llmm_output = llmm_output[0]
 
-            shift_targets = targets[:, :, :]
+            shift_targets = inputs[:, :, :]
             shift_labels = llmm_output[:, :, :]
 
             loss = criterion(shift_labels, shift_targets)
@@ -169,7 +169,7 @@ for epoch in range(0, 10):
                 llmm_output = model(inputs_embeds = inputs, decoder_inputs_embeds = targets)
                 llmm_output = llmm_output[0]
 
-                shift_targets = targets[:, :, :]
+                shift_targets = inputs[:, :, :]
                 shift_labels = llmm_output[:, :, :]
 
                 loss_func = criterion(shift_labels, shift_targets)
