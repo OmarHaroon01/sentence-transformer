@@ -106,6 +106,7 @@ seq_len = 32
 
 file_name_template = "T5_base_epoch_{}.pth"
 for epoch in range(0, 10):
+    model.train()
     train_loader_size = 0
     test_loader_size = 0
     epoch_loss = 0
@@ -148,7 +149,7 @@ for epoch in range(0, 10):
             file_name = file_name_template.format(epoch)
             torch.save(checkpoint, file_name)
 
-
+    model.eval()
     valid_loss = 0
     file_num = 0
     for file_path in test_file_paths:
