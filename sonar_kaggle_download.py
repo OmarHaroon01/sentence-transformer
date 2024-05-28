@@ -17,7 +17,7 @@ def download_file(url, output_path):
             file.write(data)
             bar.update(len(data))
 
-def download_kaggle_kernel_output(kernel_slug, path='.'):
+def download_kaggle_kernel_output(kernel_slug, path='sonar/'):
     api = KaggleApi()
     api.authenticate()
 
