@@ -12,8 +12,8 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class FinalDataset(IterableDataset):
     def __init__(self, file_path, seq_len, pad_embedding):
         self.file_path = file_path
-        self.tensors_loaded = torch.load(file_path, map_location=torch.device('cpu'))
-        self.tensors = torch.cat(self.tensors_loaded, dim = 0)
+        self.tensors = torch.load(file_path, map_location=torch.device('cpu'))
+        self.tensors = torch.cat(self.tensors, dim = 0)
         self.pad_embedding = pad_embedding
         self.seq_len = seq_len
 
@@ -32,10 +32,8 @@ class FinalDataset(IterableDataset):
         return math.ceil(len(self.tensors) / self.seq_len) # Number of pairs of tensors
 
     def clear_tensors(self):
-        del self.tensors_loaded
         del self.tensors
         self.tensors = None
-        self.tensors_loaded = None
 
 loaded_data = torch.load("train/extra_tokens.pt")
 pad_input_embedding = loaded_data['pad']
