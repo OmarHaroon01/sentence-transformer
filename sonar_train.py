@@ -211,7 +211,7 @@ for epoch in range(0, 10):
 
     print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}')
     current_directory = os.getcwd()
-    with open(os.path.join(current_directory, 'epoch_loss.txt'), 'a') as file:
+    with open(os.path.join(current_directory, 'epoch_loss_T5_large.txt'), 'a') as file:
         file.write(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}\n')
     checkpoint = {
         'epoch': epoch,
