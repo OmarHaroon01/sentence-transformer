@@ -41,7 +41,7 @@ loaded_data = torch.load("sonar/sonar_extra_tokens.pt")
 pad_input_embedding = loaded_data['pad']
 
 batch_sz = 4
-learning_rate = 0.01
+learning_rate = 0.001
 
 model = AutoModel.from_pretrained("t5-large")
 model.to(DEVICE)
