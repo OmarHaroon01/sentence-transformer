@@ -31,7 +31,7 @@ class FinalDataset(IterableDataset):
 
 
     def __len__(self):
-        return math.ceil(len(self.tensors) / self.seq_len) # Number of pairs of tensors
+        return math.floor(len(self.tensors) / self.seq_len) # Number of pairs of tensors
 
     def clear_tensors(self):
         del self.tensors
