@@ -131,6 +131,9 @@ test_file_paths = [
     "sonar_test/sonar_6150000_6300000.pt", 
     "sonar_test/sonar_6300000_6500000.pt"]
 
+for param in model.shared.parameters():
+    param.requires_grad = False
+
 seq_len = 32
 
 file_name_template = "T5_large_epoch_{}.pth"
