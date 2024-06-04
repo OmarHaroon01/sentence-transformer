@@ -46,6 +46,9 @@ learning_rate = 0.001
 model = AutoModel.from_pretrained("t5-large")
 model.to(DEVICE)
 
+for param in model.shared.parameters():
+    param.requires_grad = False
+
 criterion = nn.MSELoss()
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 scheduler = StepLR(optimizer, step_size=3, gamma=0.1)
@@ -130,9 +133,6 @@ train_file_paths = [
 test_file_paths = [
     "sonar_test/sonar_6150000_6300000.pt", 
     "sonar_test/sonar_6300000_6500000.pt"]
-
-for param in model.shared.parameters():
-    param.requires_grad = False
 
 seq_len = 32
 
