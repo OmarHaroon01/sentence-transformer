@@ -102,6 +102,9 @@ train_file_paths = ["train/output_0_30000.pt",
 test_file_paths = ["test/output_6150000_6300000.pt", 
                     "test/output_6300000_6500000.pt"]
 
+for param in model.shared.parameters():
+    param.requires_grad = False
+
 seq_len = 32
 
 file_name_template = "T5_base_epoch_{}.pth"
