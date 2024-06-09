@@ -37,22 +37,6 @@ class FinalDataset(IterableDataset):
         del self.tensors
         self.tensors = None
 
-loaded_data = torch.load("sonar/sonar_extra_tokens.pt")
-pad_input_embedding = loaded_data['pad']
-
-batch_sz = 4
-learning_rate = 0.001
-
-model = AutoModel.from_pretrained("t5-large")
-model.to(DEVICE)
-
-for param in model.shared.parameters():
-    param.requires_grad = False
-
-criterion = nn.MSELoss()
-optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
-scheduler = StepLR(optimizer, step_size=3, gamma=0.1)
-
 # NEEEED TO UPDATE
 train_file_paths = [
     "sonar/sonar_0_20000.pt", 
@@ -134,16 +118,46 @@ test_file_paths = [
     "sonar_test/sonar_6150000_6300000.pt", 
     "sonar_test/sonar_6300000_6500000.pt"]
 
+loaded_data = torch.load("sonar/sonar_extra_tokens.pt")
+pad_input_embedding = loaded_data['pad']
+
+batch_sz = 4
+learning_rate = 0.001
+
+checkpoint = torch.load("T5_large_epoch_5.pth")
+
+model = AutoModel.from_pretrained("t5-large")
+optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+scheduler = StepLR(optimizer, step_size=3, gamma=0.1)
+
+model.load_state_dict(checkpoint['model'])
+model.to(DEVICE)
+optimizer.load_state_dict(checkpoint['optimizer'])
+
+for param in model.shared.parameters():
+    param.requires_grad = False
+
+criterion = nn.MSELoss()
+start_epoch = checkpoint['epoch']
+
+for val in range(start_epoch):
+    scheduler.step()
+
 seq_len = 32
 
 file_name_template = "T5_large_epoch_{}.pth"
-for epoch in range(0, 10):
+for epoch in range(start_epoch, 10):
     model.train()
     train_loader_size = 0
     test_loader_size = 0
     epoch_loss = 0
     file_num = 0
-    for file_path in train_file_paths:
+    if epoch == start_epoch:
+        epoch_loss = checkpoint['epoch_loss']
+        file_num = checkpoint['file_done']
+        train_loader_size = checkpoint['train_loader_size']
+    for idx in range(file_num, len(train_file_paths)):
+        file_path = train_file_paths[idx]
         train_dataset = FinalDataset(file_path, seq_len, pad_input_embedding)
         file_num += 1
         train_loader = DataLoader(train_dataset, batch_size=batch_sz)
@@ -176,7 +190,8 @@ for epoch in range(0, 10):
                 'epoch_loss': epoch_loss,
                 'train_loader_size': train_loader_size,
                 'model': model.state_dict(),
-                'optimizer': optimizer.state_dict()
+                'optimizer': optimizer.state_dict(),
+                'scheduler': scheduler.state_dict()
             }
             file_name = file_name_template.format(epoch)
             torch.save(checkpoint, file_name)
@@ -219,7 +234,8 @@ for epoch in range(0, 10):
     checkpoint = {
         'epoch': epoch,
         'model': model.state_dict(),
-        'optimizer': optimizer.state_dict()
+        'optimizer': optimizer.state_dict(),
+        'scheduler': scheduler.state_dict()
     }
     file_name = file_name_template.format(epoch)
     torch.save(checkpoint, file_name)
