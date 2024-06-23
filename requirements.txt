@@ -6,3 +6,4 @@ tqdm
 evaluate
 nltk
 bs4
+accelerate
