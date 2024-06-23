@@ -1,4 +1,4 @@
-from transformers import AutoModel, AutoConfig
+from transformers import AutoModel, AutoConfig, get_scheduler
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -48,6 +48,12 @@ model.to(DEVICE)
 
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+lr_scheduler = get_scheduler(
+    name="linear",
+    optimizer=optimizer,
+    num_warmup_steps=3000,
+    num_training_steps=174330
+)
 
 train_file_paths = [
     "sonar/sonar_0_20000.pt", 
@@ -166,6 +172,7 @@ for epoch in range(0, 10):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            lr_scheduler.step()
             epoch_loss += loss.item()
 
         train_dataset.clear_tensors()
@@ -178,7 +185,8 @@ for epoch in range(0, 10):
                 'epoch_loss': epoch_loss,
                 'train_loader_size': train_loader_size,
                 'model': model.state_dict(),
-                'optimizer': optimizer.state_dict()
+                'optimizer': optimizer.state_dict(),
+                'scheduler': lr_scheduler.state_dict()
             }
             file_name = file_name_template.format(epoch)
             torch.save(checkpoint, file_name)
@@ -220,7 +228,8 @@ for epoch in range(0, 10):
     checkpoint = {
         'epoch': epoch,
         'model': model.state_dict(),
-        'optimizer': optimizer.state_dict()
+        'optimizer': optimizer.state_dict(),
+        'scheduler': lr_scheduler.state_dict()
     }
     file_name = file_name_template.format(epoch)
     torch.save(checkpoint, file_name)
