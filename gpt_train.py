@@ -179,7 +179,6 @@ for epoch in range(0, 10):
             epoch_loss += loss.item()
 
         train_dataset.clear_tensors()
-        print(f"File {file_num} of Epoch {epoch} completed")
 
         if file_num % 15 == 0:
             checkpoint = {
@@ -222,7 +221,6 @@ for epoch in range(0, 10):
             valid_loss += loss
 
         test_dataset.clear_tensors()
-        print(f"File {file_num} of Epoch {epoch} completed")
 
     print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/train_loader_size}, Eval Loss: {valid_loss/test_loader_size}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}')
     current_directory = os.getcwd()
