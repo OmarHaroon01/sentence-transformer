@@ -40,7 +40,7 @@ loaded_data = torch.load("sonar/sonar_extra_tokens.pt")
 pad_input_embedding = loaded_data['pad']
 
 batch_sz = 256
-learning_rate = 0.001
+learning_rate = 5e-5
 
 config = AutoConfig.from_pretrained("gpt2-medium")
 model = AutoModel.from_config(config)
@@ -51,7 +51,7 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 lr_scheduler = get_scheduler(
     name="linear",
     optimizer=optimizer,
-    num_warmup_steps=3000,
+    num_warmup_steps=6000,
     num_training_steps=174330
 )
 
