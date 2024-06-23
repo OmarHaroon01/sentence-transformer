@@ -48,11 +48,12 @@ model.to(DEVICE)
 
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+training_step = 44628480 // batch_sz
 lr_scheduler = get_scheduler(
     name="linear",
     optimizer=optimizer,
     num_warmup_steps=6000,
-    num_training_steps=174330
+    num_training_steps= training_step 
 )
 
 train_file_paths = [
