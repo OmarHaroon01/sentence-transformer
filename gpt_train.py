@@ -46,6 +46,9 @@ config = AutoConfig.from_pretrained("gpt2-medium")
 model = AutoModel.from_config(config)
 model.to(DEVICE)
 
+for param in model.wte.parameters():
+    param.requires_grad = False
+
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 training_step = 44628480 // batch_sz
@@ -137,8 +140,7 @@ test_file_paths = [
     "sonar_test/sonar_6300000_6500000.pt"]
     
 
-for param in model.wte.parameters():
-    param.requires_grad = False
+
 
 seq_len = 32
 
