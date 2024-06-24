@@ -21,6 +21,7 @@ class FinalDataset(IterableDataset):
     def __iter__(self):
         tensor = self.tensors
         pad_tensor = self.pad_embedding
+        pad_tensor = pad_tensor.to('cpu')
         # Iterate over the tensor in chunks of seq_len
         for i in range(0, tensor.size(0) - self.seq_len + 1, self.seq_len):
             input_tensor = tensor[i:i + self.seq_len]
