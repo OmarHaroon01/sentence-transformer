@@ -40,11 +40,14 @@ class FinalDataset(IterableDataset):
 loaded_data = torch.load("sonar/sonar_extra_tokens.pt")
 pad_input_embedding = loaded_data['pad']
 
-batch_sz = 256
+batch_sz = 128
 learning_rate = 5e-5
+
+checkpoint = torch.load("gpt_medium_epoch_6.pth")
 
 config = AutoConfig.from_pretrained("gpt2-medium")
 model = AutoModel.from_config(config)
+model.load_state_dict(checkpoint['model'])
 model.to(DEVICE)
 
 for param in model.wte.parameters():
@@ -59,6 +62,10 @@ lr_scheduler = get_scheduler(
     num_warmup_steps=6000,
     num_training_steps= training_step 
 )
+
+optimizer.load_state_dict(checkpoint['optimizer'])
+lr_scheduler.load_state_dict(checkpoint['scheduler'])
+
 
 train_file_paths = [
     "sonar/sonar_0_20000.pt", 
@@ -145,16 +152,23 @@ test_file_paths = [
 
 seq_len = 32
 
+start_epoch = checkpoint['epoch']
+
 print("TRAINING STARTED")
 print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 file_name_template = "gpt_medium_epoch_{}.pth"
-for epoch in range(0, 10):
+for epoch in range(start_epoch, 10):
     model.train()
     train_loader_size = 0
     test_loader_size = 0
     epoch_loss = 0
     file_num = 0
-    for file_path in train_file_paths:
+    if epoch == start_epoch:
+        epoch_loss = checkpoint['epoch_loss']
+        file_num = checkpoint['file_done']
+        train_loader_size = checkpoint['train_loader_size']
+    for idx in range(file_num, len(train_file_paths)):
+        file_path = train_file_paths[idx]
         train_dataset = FinalDataset(file_path, seq_len, pad_input_embedding)
         file_num += 1
         train_loader = DataLoader(train_dataset, batch_size=batch_sz)
