@@ -1,7 +1,9 @@
+### HUGGINGFACE AUTHORIZATION FOR ACCESSING LLAMA MODEL ###
 from huggingface_hub import login
 login(token = "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")
 
-from transformers import AutoModel, AutoConfig, set_seed
+### Importing required Libraries ###
+from transformers import AutoModel, AutoConfig, set_seed, get_scheduler
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -9,87 +11,8 @@ import os
 from tqdm.auto import tqdm
 from torch.utils.data import IterableDataset, DataLoader
 import math
-from torch.optim.lr_scheduler import StepLR
 
-set_seed(42)
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-class FinalDataset(IterableDataset):
-    def __init__(self, file_path, seq_len):
-        self.file_path = file_path
-        self.tensors = torch.load(file_path, map_location=torch.device('cpu'))
-        self.tensors = torch.cat(self.tensors, dim = 0)
-        self.tensors = self.tensors.roll(self.tensors, shifts=1, dims=0)
-        self.seq_len = seq_len
-
-    def __iter__(self):
-        tensor = self.tensors
-        # Iterate over the tensor in chunks of seq_len
-        for i in range(0, tensor.size(0) - self.seq_len + 1, self.seq_len):
-            input_tensor = tensor[i:i + self.seq_len]
-            yield input_tensor
-
-
-    def __len__(self):
-        return math.floor(len(self.tensors) / self.seq_len) # Number of pairs of tensors
-
-    def clear_tensors(self):
-        del self.tensors
-        self.tensors = None
-
-batch_sz = 4
-learning_rate = 0.001
-
-class SharedProjection(nn.Module):
-    def __init__(self, embedding_size, d_model):
-        super().__init__()
-        self.weight = nn.Parameter(torch.randn(d_model, embedding_size))
-
-    def forward(self, x, reverse=False):
-        if reverse:
-            # Perform the transpose projection
-            return torch.matmul(x, self.weight)
-        else:
-            # Perform the normal projection
-            return torch.matmul(x, self.weight.t())
-
-class LlamaWithProjection(nn.Module):
-    def __init__(self, embedding_size, d_model, DEVICE):
-        super().__init__()
-        self.embedding_size = embedding_size
-        self.d_model = d_model
-        self.DEVICE = DEVICE
-
-        self.shared_projection = SharedProjection(embedding_size, d_model)
-        self.llama = AutoModel.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct", torch_dtype=torch.float16, device_map=DEVICE)
-        for param in model.parameters():
-            param.requires_grad = False
-
-        for params in model.layers[31].parameters():
-            params.requires_grad = True
-
-        for params in model.layers[30].parameters():
-            params.requires_grad = True
-
-        for params in model.layers[29].parameters():
-            params.requires_grad = True
-
-        for params in model.layers[28].parameters():
-            params.requires_grad = True
-
-    def forward(self, x):
-        x = self.shared_projection(x)
-        x = self.llama(inputs_embeds = x.to(self.DEVICE))[0]
-        x = self.shared_projection(x, reverse=True)
-        return x
-
-model = LlamaWithProjection(1024, 4096, DEVICE)
-model.to(DEVICE)
-
-criterion = nn.MSELoss()
-optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
-scheduler = StepLR(optimizer, step_size=3, gamma=0.1)
-
+### LIST FOR STORING TRAIN AND TEST FILES ###
 train_file_paths = [
     "sonar/sonar_0_20000.pt",
     "sonar/sonar_20000_50000.pt",
@@ -170,10 +93,140 @@ test_file_paths = [
     "sonar_test/sonar_6150000_6300000.pt",
     "sonar_test/sonar_6300000_6500000.pt"]
 
+### Setting up seed for reproducibility and device  ###
+set_seed(42)
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+class FinalDataset(IterableDataset):
+    """
+    FinalDataset is an iterable dataset class designed to handle sequential data stored in tensor files.
+    
+    This class:
+    - Loads tensor data from a specified file.
+    - Concatenates the tensor data.
+    - Iterates over the tensor data in chunks of a specified sequence length.
+    - Provides the total number of such sequences in the dataset.
+    - Offers a method to clear the tensor data from memory.
+    
+    Attributes:
+        file_path (str): The path to the file containing the tensor data.
+        tensors (Tensor): The tensor data loaded from the file and processed.
+        seq_len (int): The length of the sequences to iterate over.
+    """
+    def __init__(self, file_path, seq_len):
+        self.file_path = file_path
+        self.tensors = torch.load(file_path, map_location=torch.device('cpu'))
+        self.tensors = torch.cat(self.tensors, dim = 0)
+        self.seq_len = seq_len
+
+    def __iter__(self):
+        tensor = self.tensors
+        # Iterate over the tensor in chunks of seq_len
+        for i in range(0, tensor.size(0) - self.seq_len + 1, self.seq_len):
+            input_tensor = tensor[i:i + self.seq_len]
+            yield input_tensor
+
+
+    def __len__(self):
+        return math.floor(len(self.tensors) / self.seq_len) # Number of pairs of tensors
+
+    def clear_tensors(self):
+        del self.tensors
+        self.tensors = None
+
+### Setting batch_sz and LR ###
+batch_sz = 4
+learning_rate = 0.001
+
+
+class SharedProjection(nn.Module):
+    """
+    SharedProjection is a class used for sharing embeddings of projection.
+    
+    This class:
+    - Initializes a weight matrix for projection.
+    - Provides a forward method to perform either normal or transpose projection based on the input.
+    
+    Attributes:
+        embedding_size (int): The size of the input embedding.
+        d_model (int): The size of the model's output.
+        weight (Tensor): The weight matrix used for projection.
+    """
+    def __init__(self, embedding_size, d_model):
+        super().__init__()
+        self.weight = nn.Parameter(torch.randn(d_model, embedding_size, dtype=torch.float16))
+
+    def forward(self, x, reverse=False):
+        if reverse:
+            # Perform the transpose projection
+            return torch.matmul(x, self.weight)
+        else:
+            # Perform the normal projection
+            return torch.matmul(x, self.weight.t())
+
+class LlamaWithProjection(nn.Module):
+    """
+    LlamaWithProjection is a neural network module that integrates a pretrained LLaMA model with a shared projection layer.
+
+    This class:
+    - Initializes a shared projection layer for dimensional transformations.
+    - Loads a pretrained LLaMA model, freezing most of its parameters except the last few layers.
+    - Projects input embeddings before and after passing through the LLaMA model.
+
+    Attributes:
+        embedding_size (int): The size of the input embedding.
+        d_model (int): The size of the model's internal representation.
+        DEVICE (str): The device to run the model on (e.g., 'cpu', 'cuda').
+        shared_projection (SharedProjection): The projection layer for input and output transformations.
+        llama (AutoModel): The pretrained LLaMA model with some layers unfrozen.
+    """
+    def __init__(self, embedding_size, d_model, DEVICE):
+        super().__init__()
+        self.embedding_size = embedding_size
+        self.d_model = d_model
+        self.DEVICE = DEVICE
+
+        self.shared_projection = SharedProjection(embedding_size, d_model)
+        self.llama = AutoModel.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct", torch_dtype=torch.float16, device_map=DEVICE)
+
+        #Freezing all parameters of llama
+        for param in self.llama.parameters():
+            param.requires_grad = False
+
+        
+        #Unfreezing last few layers of llama
+        for layer_index in range(28, 32):
+            for param in self.llama.layers[layer_index].parameters():
+                param.requires_grad = True
+
+    def forward(self, x):
+        x = x.to(torch.float16).to(self.DEVICE)
+        x = self.shared_projection(x)
+        x = self.llama(inputs_embeds = x.to(self.DEVICE))[0]
+        x = self.shared_projection(x, reverse=True)
+        return x
+
+### Defining Model ###
+model = LlamaWithProjection(1024, 4096, DEVICE)
+model.to(DEVICE)
+
+### Defining loss function, optimizer and LR scheduler ###
+criterion = nn.MSELoss()
+optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+training_step = 44628480 // batch_sz
+lr_scheduler = get_scheduler(
+    name="linear",
+    optimizer=optimizer,
+    num_warmup_steps=3000,
+    num_training_steps=training_step
+)
+
+### seq_len was defined as 32 as paragraphs of wiki had an average of 18 sentence per paragraph ###
 seq_len = 32
 
-file_name_template = "Llama_epoch_{}.pth"
 
+### Training & Validation Loop ###
+file_name_template = "Llama_epoch_{}.pth"
 for epoch in range(0, 10):
   model.train()
   train_loader_size = 0
@@ -185,7 +238,8 @@ for epoch in range(0, 10):
     file_num += 1
     train_loader = DataLoader(train_dataset, batch_size=batch_sz)
     for inputs in tqdm(train_loader, desc=f"Processing File {file_num} of train data"):
-      inputs = inputs.to(DEVICE)
+      ### Shifting to float16 for matching Dtype as that of model
+      inputs = inputs.to(torch.float16).to(DEVICE)
 
       train_loader_size += inputs.size(0)
 
@@ -195,11 +249,12 @@ for epoch in range(0, 10):
       shift_labels = llmm_output[:, :-1, :]
 
       loss = criterion(shift_labels, shift_targets)
-      epoch_loss += loss.item()
 
       optimizer.zero_grad()
       loss.backward()
       optimizer.step()
+      lr_scheduler.step()
+      epoch_loss += loss.item()
 
     train_dataset.clear_tensors()
 
@@ -211,7 +266,7 @@ for epoch in range(0, 10):
             'train_loader_size': train_loader_size,
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
-            'scheduler': scheduler.state_dict()
+            'scheduler': lr_scheduler.state_dict()
         }
         file_name = file_name_template.format(epoch)
         torch.save(checkpoint, file_name)
@@ -224,7 +279,7 @@ for epoch in range(0, 10):
     file_num += 1
     test_loader = DataLoader(test_dataset, batch_size=batch_sz)
     for inputs in tqdm(test_loader, desc=f"Processing File {file_num} of test data"):
-      inputs = inputs.to(DEVICE)
+      inputs = inputs.to(torch.float16).to(DEVICE)
 
       test_loader_size += inputs.size(0)
 
@@ -240,7 +295,7 @@ for epoch in range(0, 10):
       valid_loss += loss
     test_dataset.clear_tensors()
 
-  scheduler.step()
+  
   print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}')
   current_directory = os.getcwd()
   with open(os.path.join(current_directory, 'epoch_loss_llama_8B.txt'), 'a') as file:
@@ -249,8 +304,7 @@ for epoch in range(0, 10):
       'epoch': epoch,
       'model': model.state_dict(),
       'optimizer': optimizer.state_dict(),
-      'scheduler': scheduler.state_dict()
+      'scheduler': lr_scheduler.state_dict()
   }
   file_name = file_name_template.format(epoch)
   torch.save(checkpoint, file_name)
-
