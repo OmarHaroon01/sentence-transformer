@@ -154,7 +154,7 @@ class SharedProjection(nn.Module):
     """
     def __init__(self, embedding_size, d_model):
         super().__init__()
-        self.weight = nn.Parameter(torch.randn(d_model, embedding_size, dtype=torch.float16))
+        self.weight = nn.Parameter(torch.randn(d_model, embedding_size, dtype=torch.bfloat16))
 
     def forward(self, x, reverse=False):
         if reverse:
@@ -187,7 +187,7 @@ class LlamaWithProjection(nn.Module):
         self.DEVICE = DEVICE
 
         self.shared_projection = SharedProjection(embedding_size, d_model)
-        self.llama = AutoModel.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct", torch_dtype=torch.float16, device_map=DEVICE)
+        self.llama = AutoModel.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct", torch_dtype=torch.bfloat16, device_map=DEVICE)
 
         #Freezing all parameters of llama
         for param in self.llama.parameters():
@@ -200,7 +200,7 @@ class LlamaWithProjection(nn.Module):
                 param.requires_grad = True
 
     def forward(self, x):
-        x = x.to(torch.float16).to(self.DEVICE)
+        x = x.to(torch.bfloat16).to(self.DEVICE)
         x = self.shared_projection(x)
         x = self.llama(inputs_embeds = x.to(self.DEVICE))[0]
         x = self.shared_projection(x, reverse=True)
@@ -239,7 +239,7 @@ for epoch in range(0, 10):
     train_loader = DataLoader(train_dataset, batch_size=batch_sz)
     for inputs in tqdm(train_loader, desc=f"Processing File {file_num} of train data"):
       ### Shifting to float16 for matching Dtype as that of model
-      inputs = inputs.to(torch.float16).to(DEVICE)
+      inputs = inputs.to(torch.bfloat16).to(DEVICE)
 
       train_loader_size += inputs.size(0)
 
@@ -252,6 +252,7 @@ for epoch in range(0, 10):
 
       optimizer.zero_grad()
       loss.backward()
+      torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  
       optimizer.step()
       lr_scheduler.step()
       epoch_loss += loss.item()
@@ -279,7 +280,7 @@ for epoch in range(0, 10):
     file_num += 1
     test_loader = DataLoader(test_dataset, batch_size=batch_sz)
     for inputs in tqdm(test_loader, desc=f"Processing File {file_num} of test data"):
-      inputs = inputs.to(torch.float16).to(DEVICE)
+      inputs = inputs.to(torch.bfloat16).to(DEVICE)
 
       test_loader_size += inputs.size(0)
 
