@@ -296,10 +296,10 @@ for epoch in range(0, 10):
     test_dataset.clear_tensors()
 
   
-  print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}')
+  print(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/train_loader_size}, Eval Loss: {valid_loss/test_loader_size}')
   current_directory = os.getcwd()
   with open(os.path.join(current_directory, 'epoch_loss_llama_8B.txt'), 'a') as file:
-      file.write(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/(train_loader_size // batch_sz)}, Eval Loss: {valid_loss/(test_loader_size // batch_sz)}, Training Data Size: {train_loader_size}, Test Data Size: {test_loader_size}\n')
+      file.write(f'Epoch [{epoch+1}], Train Loss: {epoch_loss/train_loader_size}, Eval Loss: {valid_loss/test_loader_size}\n')
   checkpoint = {
       'epoch': epoch,
       'model': model.state_dict(),
