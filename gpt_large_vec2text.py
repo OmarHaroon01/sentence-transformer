@@ -110,7 +110,7 @@ class FinalDataset(IterableDataset):
         self.tensors = None
 
 ### Setting batch_sz and LR ###
-batch_sz = 64
+batch_sz = 16
 learning_rate = 0.001
 
 
