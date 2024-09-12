@@ -202,7 +202,7 @@ lr_scheduler = get_scheduler(
 )
 
 ### seq_len was defined as 32 as paragraphs of wiki had an average of 18 sentence per paragraph ###
-seq_len = 32
+seq_len = 128
 
 
 ### Training & Validation Loop ###
